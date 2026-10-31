@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0e2a">
+<title>法律短影音・三秒挑戰</title>
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{--bg:#0b0e2a;--ink:#f3f7ff;--dim:#b8c8e8;--holo:#7feaff;--gold:#ffc861;--col:min(100vw,calc(100dvh * 9 / 16))}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;overflow:hidden}
+#feed{height:100dvh;overflow-y:scroll;scroll-snap-type:y mandatory;overscroll-behavior:contain;scrollbar-width:none}
+#feed::-webkit-scrollbar{display:none}
+.s{position:relative;height:100dvh;scroll-snap-align:start;scroll-snap-stop:always;display:flex;justify-content:center;background:#05061a}
+.s video{width:var(--col);height:100dvh;object-fit:contain;background:#161b46;display:block}
+.cap{position:absolute;left:calc(50% - var(--col) / 2 + 14px);bottom:calc(22px + env(safe-area-inset-bottom));width:calc(var(--col) - 96px);text-shadow:0 1px 4px #000c;pointer-events:none}
+.cap b{display:inline-block;font-size:12px;font-weight:600;color:var(--holo);border:1px solid #7feaff99;border-radius:99px;padding:2px 9px;margin-bottom:6px;background:#0b0e2a99}
+.cap div{font-size:15px;font-weight:600;line-height:1.35}
+.cap a{pointer-events:auto;display:inline-block;margin-top:6px;font-size:13px;color:var(--dim);text-decoration:none}
+.bar{position:absolute;left:calc(50% - var(--col) / 2);bottom:0;width:var(--col);height:3px;background:#ffffff22}
+.bar i{display:block;height:100%;width:0;background:var(--gold)}
+.side{position:absolute;right:calc(50% - var(--col) / 2 + 8px);bottom:calc(120px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:18px;align-items:center}
+.side button{width:52px;height:52px;border-radius:50%;border:0;background:#0b0e2aaa;color:var(--ink);font-size:24px;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 8px #0008}
+.side small{display:block;font-size:11px;color:var(--dim);margin-top:2px;text-align:center}
+.like.on{color:#ff5a7a}
+.like.pop{animation:pop .35s}
+@keyframes pop{50%{transform:scale(1.3)}}
+.pause{position:absolute;inset:0;margin:auto;width:84px;height:84px;border-radius:50%;background:#0008;display:none;place-items:center;font-size:36px;pointer-events:none}
+.s.paused .pause{display:grid}
+#top{position:fixed;top:0;left:50%;transform:translateX(-50%);width:var(--col);padding:calc(10px + env(safe-area-inset-top)) 12px 10px;display:flex;gap:6px;align-items:center;z-index:5;background:linear-gradient(#0b0e2acc,#0b0e2a00);pointer-events:none}
+#top button,#top a{pointer-events:auto;border:1px solid #7feaff55;background:#0b0e2a99;color:var(--dim);border-radius:99px;padding:5px 11px;font-size:13px;cursor:pointer;text-decoration:none;font-family:inherit}
+#top button.on{color:#0b0e2a;background:var(--holo);border-color:var(--holo)}
+#top .sp{flex:1}
+#unmute{position:fixed;left:50%;top:calc(58px + env(safe-area-inset-top));transform:translateX(-50%);z-index:6;border:0;border-radius:99px;padding:9px 16px;font-size:15px;font-weight:600;background:var(--gold);color:#1a1530;box-shadow:0 4px 14px #0009;cursor:pointer;font-family:inherit}
+#unmute[hidden]{display:none}
+#hint{position:fixed;right:24px;bottom:24px;color:#b8c8e888;font-size:13px;display:none}
+@media (min-width:900px){#hint{display:block}}
+</style>
+</head>
+<body>
+<div id="top"><button data-f="全部" class="on">全部</button><button data-f="民法">民法</button><button data-f="刑法">刑法</button><button data-f="憲法">憲法</button><button data-f="讚">❤ 已讚</button><span class="sp"></span><a href="../law-podcast/" title="法律 Podcast">🎧</a></div>
+<button id="unmute" hidden>🔇 點一下開聲音</button>
+<div id="feed"></div>
+<div id="hint">↑ ↓ 或滾輪換下一支・空白鍵暫停・M 靜音</div>
+<script>
+(function(){
+var LS={get:function(k,d){try{var v=localStorage.getItem('lshorts.'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set:function(k,v){try{localStorage.setItem('lshorts.'+k,JSON.stringify(v))}catch(e){}}};
+var feed=document.getElementById('feed'),um=document.getElementById('unmute'),all=[],list=[],cur=-1,io;
+var likes=LS.get('likes',{}),sound=LS.get('sound',false),filt=LS.get('filter','全部');
+function h(t,c,p){var e=document.createElement(t);if(c)e.className=c;if(p)p.appendChild(e);return e}
+function build(){
+  if(io)io.disconnect();feed.innerHTML='';cur=-1;
+  list=all.filter(function(x){return filt==='全部'||(filt==='讚'?likes[x.id]:x.subj===filt)});
+  document.querySelectorAll('#top button').forEach(function(b){b.classList.toggle('on',b.dataset.f===filt)});
+  if(!list.length){var e=h('div','s',feed);e.style.alignItems='center';e.innerHTML='<p style="color:var(--dim)">還沒有按讚的影片。</p>';return}
+  list.forEach(function(x,i){
+    var s=h('section','s',feed);s.id=x.id;s.dataset.i=i;
+    var v=h('video','',s);v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');v.loop=true;v.muted=true;v.preload='none';v.poster=x.poster;v.dataset.src=x.src;
+    h('div','pause',s).textContent='▶';
+    var c=h('div','cap',s);h('b','',c).textContent=x.subj+'・'+x.year+'年律師一試 第'+x.n+'題';h('div','',c).textContent=x.title;
+    var a=h('a','',c);a.href=x.pod;a.textContent='🎧 完整解說：Podcast '+x.podt;
+    var bar=h('div','bar',s);h('i','',bar);
+    var sd=h('div','side',s);
+    var lk=h('button','like'+(likes[x.id]?' on':''),sd);lk.textContent=likes[x.id]?'♥':'♡';lk.title='讚';lk.setAttribute('aria-label','讚');
+    lk.onclick=function(ev){ev.stopPropagation();if(likes[x.id])delete likes[x.id];else likes[x.id]=Date.now();LS.set('likes',likes);lk.classList.toggle('on',!!likes[x.id]);lk.textContent=likes[x.id]?'♥':'♡';lk.classList.remove('pop');void lk.offsetWidth;lk.classList.add('pop')};
+    var mb=h('button','mute',sd);mb.title='聲音';mb.setAttribute('aria-label','聲音');mb.onclick=function(ev){ev.stopPropagation();setSound(!sound)};
+    var sh=h('button','share',sd);sh.textContent='↗';sh.title='分享';sh.setAttribute('aria-label','分享');
+    sh.onclick=function(ev){ev.stopPropagation();var u=location.href.split('#')[0]+'#'+x.id;if(navigator.share)navigator.share({title:x.title,url:u}).catch(function(){});else if(navigator.clipboard)navigator.clipboard.writeText(u).then(function(){sh.textContent='✓';setTimeout(function(){sh.textContent='↗'},1200)})};
+    v.addEventListener('timeupdate',function(){bar.firstChild.style.width=(v.currentTime/(v.duration||x.dur)*100)+'%'});
+    s.addEventListener('click',function(){if(v.paused){play(v)}else{v.pause();s.classList.add('paused')}});
+  });
+  muteIcons();
+  io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&e.intersectionRatio>=0.6)activate(+e.target.dataset.i)})},{root:feed,threshold:[0.6]});
+  feed.querySelectorAll('.s').forEach(function(s){io.observe(s)});
+}
+function load(i){var s=feed.children[i];if(!s)return;var v=s.querySelector('video');if(v&&!v.getAttribute('src')){v.src=v.dataset.src;v.preload='auto'}}
+function play(v){v.muted=!sound;var p=v.play();v.parentNode.classList.remove('paused');
+  if(p&&p.catch)p.catch(function(){if(!v.muted){v.muted=true;sound=false;muteIcons();um.hidden=false;v.play().catch(function(){v.parentNode.classList.add('paused')})}else v.parentNode.classList.add('paused')})}
+function activate(i){
+  if(i===cur)return;cur=i;
+  feed.querySelectorAll('video').forEach(function(v,k){if(k!==i&&!v.paused){v.pause()}});
+  load(i);load(i+1);
+  var s=feed.children[i],v=s.querySelector('video');v.currentTime=0;play(v);
+  LS.set('last',list[i].id);if(history.replaceState)history.replaceState(null,'','#'+list[i].id);
+}
+function muteIcons(){feed.querySelectorAll('.mute').forEach(function(b){b.textContent=sound?'🔊':'🔇'});um.hidden=sound}
+function setSound(on){sound=on;LS.set('sound',on);var s=feed.children[cur],v=s&&s.querySelector('video');if(v){v.muted=!on;if(v.paused)play(v)}muteIcons()}
+um.onclick=function(){setSound(true)};
+document.querySelectorAll('#top button').forEach(function(b){b.onclick=function(){filt=b.dataset.f;LS.set('filter',filt);build();feed.scrollTop=0}});
+function go(d){var n=Math.max(0,Math.min(list.length-1,cur+d));feed.children[n]&&feed.children[n].scrollIntoView({behavior:'smooth'})}
+document.addEventListener('keydown',function(e){if(e.key==='ArrowDown'||e.key==='PageDown'||e.key==='j'){e.preventDefault();go(1)}else if(e.key==='ArrowUp'||e.key==='PageUp'||e.key==='k'){e.preventDefault();go(-1)}else if(e.key===' '){e.preventDefault();var s=feed.children[cur];s&&s.click()}else if(e.key==='m'||e.key==='M')setSound(!sound)});
+document.addEventListener('visibilitychange',function(){var s=feed.children[cur],v=s&&s.querySelector('video');if(!v)return;if(document.hidden)v.pause();else if(!s.classList.contains('paused'))play(v)});
+fetch('shorts.json',{cache:'no-cache'}).then(function(r){return r.json()}).then(function(d){
+  all=d.items;
+  // 洗牌一次（同一支手機固定順序，每天換一次），開頭先放上次看到的那支
+  var seed=+new Date().toISOString().slice(0,10).replace(/-/g,''),rnd=function(){seed=(seed*9301+49297)%233280;return seed/233280};
+  for(var i=all.length-1;i>0;i--){var j=Math.floor(rnd()*(i+1)),t=all[i];all[i]=all[j];all[j]=t}
+  build();
+  var want=(location.hash||'').slice(1)||LS.get('last','');var el=want&&document.getElementById(want);
+  if(el){feed.scrollTop=el.offsetTop}
+  if(!sound)um.hidden=false;
+});
+})();
+</script>
+</body>
+</html>

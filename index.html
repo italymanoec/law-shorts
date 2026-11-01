@@ -60,7 +60,7 @@ function build(){
     var s=h('section','s',feed);s.id=x.id;s.dataset.i=i;
     var v=h('video','',s);v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');v.loop=true;v.muted=true;v.preload='none';v.poster=x.poster;v.dataset.src=x.src;
     h('div','pause',s).textContent='▶';
-    var c=h('div','cap',s);h('b','',c).textContent=x.tag||(x.subj+'・'+x.year+'年律師一試 第'+x.n+'題');h('div','',c).textContent=x.title;
+    var c=h('div','cap',s);h('b','',c).textContent=x.exam||x.tag||(x.subj+'・'+x.year+'年律師一試 第'+x.n+'題');h('div','',c).textContent=x.title;
     if(x.pod){var a=h('a','',c);a.href=x.pod;a.textContent='🎧 完整解說：Podcast '+x.podt}
     var bar=h('div','bar',s);h('i','',bar);
     var sd=h('div','side',s);

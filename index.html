@@ -60,8 +60,8 @@ function build(){
     var s=h('section','s',feed);s.id=x.id;s.dataset.i=i;
     var v=h('video','',s);v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');v.loop=true;v.muted=true;v.preload='none';v.poster=x.poster;v.dataset.src=x.src;
     h('div','pause',s).textContent='▶';
-    var c=h('div','cap',s);h('b','',c).textContent=x.subj+'・'+x.year+'年律師一試 第'+x.n+'題';h('div','',c).textContent=x.title;
-    var a=h('a','',c);a.href=x.pod;a.textContent='🎧 完整解說：Podcast '+x.podt;
+    var c=h('div','cap',s);h('b','',c).textContent=x.tag||(x.subj+'・'+x.year+'年律師一試 第'+x.n+'題');h('div','',c).textContent=x.title;
+    if(x.pod){var a=h('a','',c);a.href=x.pod;a.textContent='🎧 完整解說：Podcast '+x.podt}
     var bar=h('div','bar',s);h('i','',bar);
     var sd=h('div','side',s);
     var lk=h('button','like'+(likes[x.id]?' on':''),sd);lk.textContent=likes[x.id]?'♥':'♡';lk.title='讚';lk.setAttribute('aria-label','讚');
@@ -93,8 +93,18 @@ document.getElementById('fs').onclick=function(ev){var b=ev.target.closest('butt
 function go(d){var n=Math.max(0,Math.min(list.length-1,cur+d));feed.children[n]&&feed.children[n].scrollIntoView({behavior:'smooth'})}
 document.addEventListener('keydown',function(e){if(e.key==='ArrowDown'||e.key==='PageDown'||e.key==='j'){e.preventDefault();go(1)}else if(e.key==='ArrowUp'||e.key==='PageUp'||e.key==='k'){e.preventDefault();go(-1)}else if(e.key===' '){e.preventDefault();var s=feed.children[cur];s&&s.click()}else if(e.key==='m'||e.key==='M')setSound(!sound)});
 document.addEventListener('visibilitychange',function(){var s=feed.children[cur],v=s&&s.querySelector('video');if(!v)return;if(document.hidden)v.pause();else if(!s.classList.contains('paused'))play(v)});
-fetch('shorts.json',{cache:'no-cache'}).then(function(r){return r.json()}).then(function(d){
-  all=d.items;
+// 申論 AI 擬答草稿影片（essay_drafts.json）一併上首頁；讀不到就只放選擇題影片，原本行為不變
+var ESUBJ={LAB:'勞動社會法',TAX:'財稅法',IP:'智慧財產法',MAR:'海商法與海洋法'},CN='一二三四五六七八九十';
+function essayItems(X){var out=[];if(!X||!X.essays)return out;
+  Object.keys(X.essays).forEach(function(k){var d=X.essays[k].draft,v=d&&d.video,m=k.match(/^Q(\d+)J?-([A-Z]+)-(\d+)(?:-(\d+))?$/);
+    if(!v||!v.src||!m||!ESUBJ[m[2]])return;
+    out.push({id:v.vid,subj:ESUBJ[m[2]],title:v.title,dur:v.dur,src:v.src,poster:v.poster,
+      tag:ESUBJ[m[2]]+'・'+m[1]+'年申論 第'+(CN[+m[3]-1]||m[3])+'題'+(m[4]?('㈠㈡㈢㈣㈤㈥㈦㈧㈨㈩'[+m[4]-1]||'（'+m[4]+'）'):'')+'｜AI擬答草稿・非考選部公布答案'})});
+  return out}
+Promise.all([fetch('shorts.json',{cache:'no-cache'}).then(function(r){return r.json()}),
+  fetch('essay_drafts.json',{cache:'no-cache'}).then(function(r){return r.ok?r.json():null}).catch(function(){return null})]).then(function(rs){
+  var d=rs[0],ids={};d.items.forEach(function(x){ids[x.id]=1});
+  all=d.items.concat(essayItems(rs[1]).filter(function(x){return !ids[x.id]}));
   // 科目按鈕依資料自動產生（全題庫逐批上線，科目會越來越多；列可左右滑）
   var fs=document.getElementById('fs'),like=fs.querySelector('[data-f="讚"]'),seen=[];
   all.forEach(function(x){if(seen.indexOf(x.subj)<0){seen.push(x.subj);var b=document.createElement('button');b.dataset.f=x.subj;b.textContent=x.subj;fs.insertBefore(b,like)}});
